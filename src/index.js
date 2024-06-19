@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import { App } from './components/App/App'; // Ensure you are importing named export 'App'
+import App from './components/App/App'; // Importing App without curly braces
 
 ReactDOM.render(
   <React.StrictMode>

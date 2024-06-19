@@ -3,22 +3,11 @@ import ContactForm from '../ContactForm/ContactForm';
 import ContactList from '../ContactList/ContactList';
 import Filter from '../Filter/Filter';
 import { nanoid } from 'nanoid';
-import styled from 'styled-components'; // Import styled-components
-import PropTypes from 'prop-types';
+import styles from './App.module.css';
 
-// Styled component for PhoneBook container
-export const PhoneBookStyled = styled.div`
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  font-size: 40px; /* Make sure to include the unit (px) for font-size */
-  color: #010101;
-`;
+const LS_KEY = 'deleted_contacts';
 
-// Class component for PhoneBook
-class PhoneBook extends Component {
+class App extends Component {
   state = {
     contacts: [
       { id: 'id-1', name: 'Rosie Simpson', number: '459-12-56' },
@@ -30,85 +19,82 @@ class PhoneBook extends Component {
   };
 
   componentDidMount() {
-    let contactsLS = [];
-
-    if (localStorage.getItem('Contacts')) {
-      contactsLS = JSON.parse(localStorage.getItem('Contacts'));
-    }
-    if (contactsLS.length !== 0) {
-      this.setState({ contacts: [...contactsLS] });
+    const storedDeletedContacts = localStorage.getItem(LS_KEY);
+    if (storedDeletedContacts) {
+      const deletedContacts = JSON.parse(storedDeletedContacts);
+      this.setState((prevState) => ({
+        contacts: prevState.contacts.filter(
+          (contact) => !deletedContacts.includes(contact.id)
+        ),
+      }));
     }
   }
 
   componentDidUpdate(prevProps, prevState) {
     if (prevState.contacts !== this.state.contacts) {
-      const contactsJSON = JSON.stringify(this.state.contacts);
-      localStorage.setItem('Contacts', contactsJSON);
+      const deletedContacts = this.state.contacts
+        .filter(
+          (contact) =>
+            !prevState.contacts.some((prevContact) => prevContact.id === contact.id)
+        )
+        .map((contact) => contact.id);
+      localStorage.setItem(LS_KEY, JSON.stringify(deletedContacts));
     }
   }
 
-  addContact = (contact, number) => {
-    let prevContacts = this.state.contacts.map(({ name }) =>
-      name.toLocaleLowerCase()
-    );
-    let bool = prevContacts.includes(contact.toLocaleLowerCase());
-    if (bool) {
-      alert(`${contact} is already in contacts`);
-      return;
-    }
-    const obj = {
+  addContact = (name, number) => {
+    const contact = {
       id: nanoid(),
-      name: contact,
-      number: number,
+      name,
+      number,
     };
 
-    this.setState(prevState => {
-      prevState.contacts.push(obj);
-      return { contacts: [...prevState.contacts] };
-    });
+    if (this.state.contacts.some((contact) => contact.name === name)) {
+      alert(`${name} is already in contacts`);
+      return;
+    }
+
+    this.setState((prevState) => ({
+      contacts: [...prevState.contacts, contact],
+    }));
   };
 
-  filter = evt => {
-    const filterValue = evt.target.value;
-    this.setState({ filter: filterValue.toLocaleLowerCase() });
+  deleteContact = (contactId) => {
+    this.setState((prevState) => ({
+      contacts: prevState.contacts.filter((contact) => contact.id !== contactId),
+    }));
   };
 
-  delete = id => {
-    this.setState(prevState => {
-      let x = prevState.contacts.filter(contact => contact.id !== id);
-      return { contacts: [...x] };
-    });
+  changeFilter = (e) => {
+    this.setState({ filter: e.target.value });
+  };
+
+  getFilteredContacts = () => {
+    const { contacts, filter } = this.state;
+    const normalizedFilter = filter.toLowerCase();
+
+    return contacts.filter((contact) =>
+      contact.name.toLowerCase().includes(normalizedFilter)
+    );
   };
 
   render() {
-    const filterContacts = this.state.contacts.filter(contact =>
-      contact.name.toLocaleLowerCase().includes(this.state.filter)
-    );
+    const { filter } = this.state;
+    const filteredContacts = this.getFilteredContacts();
+
     return (
-      <PhoneBookStyled>
+      <div className={styles.container}>
         <h1>Phonebook</h1>
-        <ContactForm addContact={this.addContact} />
+        <ContactForm onSubmit={this.addContact} />
         <h2>Contacts</h2>
-        <Filter filter={this.filter} />
-        <ContactList contacts={filterContacts} onDelete={this.delete} />
-      </PhoneBookStyled>
+        <Filter value={filter} onChange={this.changeFilter} />
+        <ContactList
+          contacts={filteredContacts}
+          onDeleteContact={this.deleteContact}
+        />
+      </div>
     );
   }
 }
 
-// Functional component App that renders PhoneBook
-export const App = () => {
-  return <PhoneBook />;
-};
-
-// PropTypes for PhoneBook component
-PhoneBook.propTypes = {
-  contacts: PropTypes.arrayOf(
-    PropTypes.shape({
-      id: PropTypes.string,
-      name: PropTypes.string,
-      number: PropTypes.string,
-    })
-  ),
-  filter: PropTypes.string,
-};
+export default App;
